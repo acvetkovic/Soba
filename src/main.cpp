@@ -290,7 +290,16 @@ int main() {
 
     // load models
     // -----------
-    Model ourModel("resources/objects/backpack/backpack.obj");
+
+    Model ourModel("resources/objects/backpack/backpack.obj"); //backpack/backpack.obj
+    ourModel.SetShaderTextureNamePrefix("material.");
+
+    Model lampModel("resources/objects/lamp/light.obj");
+    ourModel.SetShaderTextureNamePrefix("material.");
+
+    unsigned int lampTexture = loadTexture(FileSystem::getPath("resources/objects/lamp/lamp.jpg").c_str());
+
+    Model tvModel("resources/objects/Samsung_Smart_TV_55_Zoll/Samsung Smart TV 55 Zoll.obj");
     ourModel.SetShaderTextureNamePrefix("material.");
 
     Model sofaModel("resources/objects/sofa/3LU_KOLTUK.obj");
@@ -334,7 +343,8 @@ int main() {
 
         // don't forget to enable shader before setting uniforms
         ourShader.use();
-        pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
+        //pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
+        pointLight.position = glm::vec3(0.0f, 7.0f, 0.0f);
         ourShader.setVec3("pointLight.position", pointLight.position);
         ourShader.setVec3("pointLight.ambient", pointLight.ambient);
         ourShader.setVec3("pointLight.diffuse", pointLight.diffuse);
@@ -387,6 +397,33 @@ int main() {
 
         // render the loaded models
 
+
+        //backpack
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,programState->backpackPosition);
+        model = glm::scale(model, glm::vec3(programState->backpackScale));
+        ourShader.setMat4("model", model);
+        ourModel.Draw(ourShader);
+
+        //lamp
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, lampTexture);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,glm::vec3(0.0f, 8.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.03f));
+        ourShader.setMat4("model", model);
+        lampModel.Draw(ourShader);
+
+        //tv
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,glm::vec3(-3.0, 3.0, -11.0));
+        //model = glm::scale(model, glm::vec3(1.0));
+        ourShader.setMat4("model", model);
+        tvModel.Draw(ourShader);
+
         //sofa
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, sofaTexture);
@@ -396,13 +433,6 @@ int main() {
         model = glm::scale(model, glm::vec3(0.025f));
         ourShader.setMat4("model", model);
         sofaModel.Draw(ourShader);
-
-        //backpack
-        model = glm::mat4(1.0f);
-        model = glm::translate(model,programState->backpackPosition);
-        model = glm::scale(model, glm::vec3(programState->backpackScale));
-        ourShader.setMat4("model", model);
-        ourModel.Draw(ourShader);
 
 
 
