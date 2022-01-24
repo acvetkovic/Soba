@@ -293,6 +293,11 @@ int main() {
     Model ourModel("resources/objects/backpack/backpack.obj");
     ourModel.SetShaderTextureNamePrefix("material.");
 
+    Model sofaModel("resources/objects/sofa/3LU_KOLTUK.obj");
+    ourModel.SetShaderTextureNamePrefix("material.");
+
+    unsigned int sofaTexture = loadTexture(FileSystem::getPath("resources/objects/sofa/sofa.png").c_str());
+
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(0.0f, 2.0, 0.5);
     pointLight.ambient = glm::vec3(0.9, 0.9, 0.9);
@@ -378,12 +383,29 @@ int main() {
         glBindVertexArray(wallsVAO);
         glDrawArrays(GL_TRIANGLES, 0, 24);
 
-        // render the loaded model
+        glBindTexture(GL_TEXTURE_2D, 1);
+
+        // render the loaded models
+
+        //sofa
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, sofaTexture);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,glm::vec3(-5.0f, 0.6f, 9.0f));
+        model = glm::scale(model, glm::vec3(0.025f));
+        ourShader.setMat4("model", model);
+        sofaModel.Draw(ourShader);
+
+        //backpack
         model = glm::mat4(1.0f);
         model = glm::translate(model,programState->backpackPosition);
         model = glm::scale(model, glm::vec3(programState->backpackScale));
         ourShader.setMat4("model", model);
         ourModel.Draw(ourShader);
+
+
+
 
 
         if (programState->ImGuiEnabled)
