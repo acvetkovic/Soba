@@ -190,6 +190,9 @@ int main() {
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     // build and compile shaders
     // -------------------------
     Shader ourShader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
@@ -280,10 +283,19 @@ int main() {
     };
 
     glm::vec3 tableLegsPosition[] = {
-            glm::vec3(3.0f, 1.0f, 0.0f),
+            glm::vec3(3.0f, 1.0f, -2.0f),
             glm::vec3(3.0f, 1.0f, 5.0f),
             glm::vec3(-6.0f, 1.0f, 5.0f),
-            glm::vec3(-6.0f, 1.0f, 0.0f)
+            glm::vec3(-6.0f, 1.0f, -2.0f)
+    };
+
+    float glassVertices[] = { // cube from learn opengl, normals inverted
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f,  0.0f,  1.0f,
+            0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f,  1.0f,  1.0f,
+            0.5f, -0.5f,  0.5f,  0.0f, 1.0f,  0.0f,  1.0f,  0.0f,
+            0.5f, -0.5f,  0.5f,  0.0f, 1.0f,  0.0f,  1.0f,  0.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 1.0f,  0.0f,  0.0f,  0.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f,  0.0f,  1.0f
     };
 
     //floor
@@ -343,6 +355,27 @@ int main() {
 
     unsigned int woodDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/wood_diffuse2.jpg").c_str());
     unsigned int woodSpecularMap = loadTexture(FileSystem::getPath("resources/textures/wood_specular2.jpg").c_str());
+
+    //table glass
+
+    unsigned int glassVBO, glassVAO;
+    glGenVertexArrays(1, &glassVAO);
+    glGenBuffers(1, &glassVBO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, glassVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glassVertices), glassVertices, GL_STATIC_DRAW);
+
+    glBindVertexArray(glassVAO);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    unsigned int glassDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/glass.png").c_str());
+    unsigned int glassSpecularMap = loadTexture(FileSystem::getPath("resources/textures/glass_specular.jpg").c_str());
+
 
     // load models
     // -----------
@@ -568,6 +601,21 @@ int main() {
         sofaModel.Draw(ourShader);
 
 
+        //table glass
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, glassDiffuseMap);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, glassSpecularMap);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-1.55f, 2.01f, 1.45f));
+        model = glm::scale(model, glm::vec3(9.6f, 0.0f, 7.6f));
+        ourShader.setMat4("model", model);
+
+        glBindVertexArray(glassVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
 
@@ -728,4 +776,3 @@ unsigned int loadTexture(char const * path)
 
     return textureID;
 }
-
