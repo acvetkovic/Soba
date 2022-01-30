@@ -29,6 +29,8 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 unsigned int loadTexture(char const * path);
 
+unsigned int loadCubemap(vector<std::string> faces);
+
 // settings
 const unsigned int SCR_WIDTH = 1600;
 const unsigned int SCR_HEIGHT = 1200;
@@ -167,8 +169,8 @@ int main() {
         return -1;
     }
 
-    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
-    stbi_set_flip_vertically_on_load(true);
+    //DO NOT tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
+    stbi_set_flip_vertically_on_load(false); //work for all model maps and cubemap
 
     programState = new ProgramState;
     programState->LoadFromFile("resources/program_state.txt");
@@ -196,8 +198,8 @@ int main() {
 
     // build and compile shaders
     // -------------------------
-    Shader ourShader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
-
+    Shader ourShader("resources/shaders/room.vs", "resources/shaders/room.fs");
+    Shader cubemapShader("resources/shaders/cubemap.vs", "resources/shaders/cubemap.fs");
 
     float cubeVertices[] = { // from learn opengl
             //positions          // normals           // texture coords
@@ -299,6 +301,76 @@ int main() {
             -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f,  0.0f,  1.0f
     };
 
+    float cubemapVertices[] = {
+            // positions
+            -1.0f,  1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f, -1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+            1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+
+            -1.0f, -1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f, -1.0f,  1.0f,
+            -1.0f, -1.0f,  1.0f,
+
+            -1.0f,  1.0f, -1.0f,
+            1.0f,  1.0f, -1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f,  1.0f,
+            -1.0f,  1.0f, -1.0f,
+
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+            1.0f, -1.0f, -1.0f,
+            1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f,  1.0f,
+            1.0f, -1.0f,  1.0f
+    };
+
+    //cubemap
+
+    unsigned int cubemapVAO, cubemapVBO;
+    glGenVertexArrays(1, &cubemapVAO);
+    glGenBuffers(1, &cubemapVBO);
+
+    glBindVertexArray(cubemapVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubemapVBO);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubemapVertices), &cubemapVertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    vector<std::string> faces
+            {
+                    FileSystem::getPath("resources/textures/brudslojan/posx.jpg"),
+                    FileSystem::getPath("resources/textures/brudslojan/negx.jpg"),
+                    FileSystem::getPath("resources/textures/brudslojan/posy.jpg"),
+                    FileSystem::getPath("resources/textures/brudslojan/negy.jpg"),
+                    FileSystem::getPath("resources/textures/brudslojan/posz.jpg"),
+                    FileSystem::getPath("resources/textures/brudslojan/negz.jpg")
+            };
+    unsigned int cubemapTexture = loadCubemap(faces);
+
     //floor
     unsigned int floorVBO, floorVAO;
     glGenVertexArrays(1, &floorVAO);
@@ -388,12 +460,15 @@ int main() {
     Model ourModel("resources/objects/backpack/backpack.obj"); //backpack/backpack.obj
     ourModel.SetShaderTextureNamePrefix("material.");
 
+    Model catModel("resources/objects/cat/12221_Cat_v1_l3.obj");
+    ourModel.SetShaderTextureNamePrefix("material.");
+
     Model lampModel("resources/objects/lamp/light.obj");
     ourModel.SetShaderTextureNamePrefix("material.");
 
     unsigned int lampTexture = loadTexture(FileSystem::getPath("resources/objects/lamp/lamp.jpg").c_str());
 
-    Model tvModel("resources/objects/Samsung_Smart_TV_55_Zoll/Samsung Smart TV 55 Zoll_x3d.x3d");
+    Model tvModel("resources/objects/Samsung_Smart_TV_55_Zoll/Samsung Smart TV 55 Zoll.obj");
     ourModel.SetShaderTextureNamePrefix("material.");
 
     Model sofaModel("resources/objects/sofa/3LU_KOLTUK.obj");
@@ -554,16 +629,6 @@ int main() {
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-        //render cabinet
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-3.1f, 1.501f, -11.5f));
-        model = glm::scale(model, glm::vec3(11.0f, 3.0f, 4.0f));
-
-        ourShader.setMat4("model", model);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-
         // render the loaded models
         //backpack
         model = glm::mat4(1.0f);
@@ -571,6 +636,17 @@ int main() {
         model = glm::scale(model, glm::vec3(programState->backpackScale));
         ourShader.setMat4("model", model);
         ourModel.Draw(ourShader);
+
+        //cat
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(7.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0, 0.0, 0.0));
+        model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(0.0, 0.0, 1.0));
+        model = glm::scale(model, glm::vec3(0.08f));
+        ourShader.setMat4("model", model);
+        catModel.Draw(ourShader);
+
 
         //lamp
         glActiveTexture(GL_TEXTURE0);
@@ -585,16 +661,16 @@ int main() {
 
         //tv
 
+        glDisable(GL_CULL_FACE); // sofa ana tv not rendering correctly
+
         model = glm::mat4(1.0f);
         model = glm::translate(model,glm::vec3(-3.0, 3.0, -11.0));
 
-        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         ourShader.setMat4("model", model);
         tvModel.Draw(ourShader);
 
         //sofa
 
-        glDisable(GL_CULL_FACE); // model not rendering correctly
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, sofaDiffuse);
@@ -608,9 +684,11 @@ int main() {
         ourShader.setMat4("model", model);
         sofaModel.Draw(ourShader);
 
-        glEnable(GL_CULL_FACE);
+
 
         //table glass
+
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, glassDiffuseMap);
 
@@ -618,12 +696,32 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, glassSpecularMap);
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-1.55f, 2.01f, 1.45f));
+        model = glm::translate(model, glm::vec3(-1.53f, 2.01f, 1.49f));
         model = glm::scale(model, glm::vec3(9.6f, 0.0f, 7.6f));
         ourShader.setMat4("model", model);
 
         glBindVertexArray(glassVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glEnable(GL_CULL_FACE); // glass have both sides
+
+        //cubemap
+
+        glDepthFunc(GL_LEQUAL);
+        cubemapShader.use();
+        view = glm::mat4(glm::mat3(programState->camera.GetViewMatrix()));
+        cubemapShader.setMat4("view", view);
+        cubemapShader.setMat4("projection", projection);
+        // skybox cube
+        glBindVertexArray(cubemapVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(0);
+        glDepthFunc(GL_LESS);
+
+
+
 
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
@@ -648,11 +746,12 @@ int main() {
     glDeleteVertexArrays(1, &wallsVAO);
     glDeleteVertexArrays(1, &cubeVAO);
     glDeleteVertexArrays(1, &glassVAO);
+    glDeleteVertexArrays(1, &cubemapVAO);
     glDeleteBuffers(1, &floorVBO);
     glDeleteBuffers(1, &wallsVBO);
     glDeleteBuffers(1, &cubeVBO);
     glDeleteBuffers(1, &glassVBO);
-
+    glDeleteBuffers(1, &cubemapVBO);
     glfwTerminate();
     return 0;
 }
@@ -792,6 +891,45 @@ unsigned int loadTexture(char const * path)
         std::cout << "Texture failed to load at path: " << path << std::endl;
         stbi_image_free(data);
     }
+
+    return textureID;
+}
+
+// loads a cubemap texture from 6 individual texture faces
+// order:
+// +X (right)
+// -X (left)
+// +Y (top)
+// -Y (bottom)
+// +Z (front)
+// -Z (back)
+// -------------------------------------------------------
+unsigned int loadCubemap(vector<std::string> faces)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces.size(); i++)
+    {
+        unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+        }
+        else
+        {
+            std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
     return textureID;
 }
