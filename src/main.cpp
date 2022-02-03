@@ -87,14 +87,11 @@ struct SpotLight {
 };
 
 struct ProgramState {
-    glm::vec3 clearColor = glm::vec3(0);
     bool ImGuiEnabled = false;
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
     bool PointLightEnabled = false;
     bool SpotLightEnabled = true;
-    glm::vec3 backpackPosition = glm::vec3(0.0f, 5.0f, 0.0f);
-    float backpackScale = 1.0f;
 
     PointLight pointLight;
     DirLight dirLight;
@@ -110,10 +107,7 @@ struct ProgramState {
 
 void ProgramState::SaveToFile(std::string filename) {
     std::ofstream out(filename);
-    out << clearColor.r << '\n'
-        << clearColor.g << '\n'
-        << clearColor.b << '\n'
-        << ImGuiEnabled << '\n'
+    out << ImGuiEnabled << '\n'
         << camera.Position.x << '\n'
         << camera.Position.y << '\n'
         << camera.Position.z << '\n'
@@ -125,10 +119,7 @@ void ProgramState::SaveToFile(std::string filename) {
 void ProgramState::LoadFromFile(std::string filename) {
     std::ifstream in(filename);
     if (in) {
-        in >> clearColor.r
-           >> clearColor.g
-           >> clearColor.b
-           >> ImGuiEnabled
+        in >> ImGuiEnabled
            >> camera.Position.x
            >> camera.Position.y
            >> camera.Position.z
@@ -189,8 +180,6 @@ int main() {
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     (void) io;
-
-
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
@@ -444,7 +433,7 @@ int main() {
     unsigned int wallsDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/wall_diffuse.jpg").c_str(), true);
     unsigned int wallsSpecularMap = loadTexture(FileSystem::getPath("resources/textures/wall_specular.jpg").c_str(), true);
 
-    //table legs, cabinet
+    //table legs
 
     unsigned int cubeVBO, cubeVAO;
     glGenVertexArrays(1, &cubeVAO);
@@ -490,22 +479,20 @@ int main() {
     // load models
     // -----------
 
-    Model ourModel("resources/objects/backpack/backpack.obj"); //backpack/backpack.obj
-    ourModel.SetShaderTextureNamePrefix("material.");
 
     Model catModel("resources/objects/cat/12221_Cat_v1_l3.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
+    catModel.SetShaderTextureNamePrefix("material.");
 
     Model lampModel("resources/objects/lamp/light.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
+    lampModel.SetShaderTextureNamePrefix("material.");
 
     unsigned int lampTexture = loadTexture(FileSystem::getPath("resources/objects/lamp/lamp.jpg").c_str(), true);
 
     Model tvModel("resources/objects/Samsung_Smart_TV_55_Zoll/Samsung Smart TV 55 Zoll.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
+    tvModel.SetShaderTextureNamePrefix("material.");
 
     Model sofaModel("resources/objects/sofa/3LU_KOLTUK.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
+    sofaModel.SetShaderTextureNamePrefix("material.");
 
     unsigned int sofaDiffuse = loadTexture(FileSystem::getPath("resources/objects/sofa/sofa_diffuse.jpg").c_str(), true);
     unsigned int sofaSpecular = loadTexture(FileSystem::getPath("resources/objects/sofa/sofa_specular.jpg").c_str(), true);
@@ -514,7 +501,7 @@ int main() {
     pointLight.position = glm::vec3(0.0f, 8.0f, 0.0f);
     pointLight.ambient = glm::vec3(0.9f, 0.9f, 0.9f);
     pointLight.diffuse = glm::vec3(5.6f, 5.6f, 5.6f);
-    pointLight.specular = glm::vec3(3.0f, 3.0f, 3.0f);
+    pointLight.specular = glm::vec3(4.0f, 4.0f, 4.0f);
     pointLight.constant = 1.0f;
     pointLight.linear = 0.09f;
     pointLight.quadratic = 0.032f;
@@ -528,9 +515,9 @@ int main() {
     SpotLight& spotLight = programState->spotLight;
     spotLight.direction = glm::vec3(0.0f, -1.0f, 0.0f);
     spotLight.position = glm::vec3(0.0f, 8.0f, 0.0f);
-    spotLight.ambient = glm::vec3(0.7f, 0.7f, 0.6f);
-    spotLight.diffuse = glm::vec3(1.0f, 1.0f, 0.7f);
-    spotLight.specular = glm::vec3(0.7f, 0.7f, 0.7f);
+    spotLight.ambient = glm::vec3(0.1f, 0.1f, 0.1f);
+    spotLight.diffuse = glm::vec3(0.4f, 0.4f, 0.25f);
+    spotLight.specular = glm::vec3(0.2f, 0.2f, 0.1f);
     spotLight.constant = 0.5f;
     spotLight.linear = 0.1f;
     spotLight.quadratic = 0.04f;
@@ -554,24 +541,22 @@ int main() {
         // -----
         processInput(window);
 
-
         // render into fbo
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-
         glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-        // ------
+
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         // don't forget to enable shader before setting uniforms
         roomShader.use();
-        //pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
 
         //pointlight
         if (programState->PointLightEnabled) { // turn on/off pointlight
-            exposure = 0.4f;
+            exposure = 0.3f;
             roomShader.setVec3("pointLight.ambient", pointLight.ambient);
             roomShader.setVec3("pointLight.diffuse", pointLight.diffuse);
             roomShader.setVec3("pointLight.specular", pointLight.specular);
@@ -593,7 +578,7 @@ int main() {
 
         //spotlight
         if (programState->SpotLightEnabled) { //turn on/off spotlight
-            exposure = 1.5f;
+            exposure = 2.0f;
             roomShader.setVec3("spotLight.ambient", spotLight.ambient);
             roomShader.setVec3("spotLight.diffuse", spotLight.diffuse);
             roomShader.setVec3("spotLight.specular", spotLight.specular);
@@ -603,7 +588,9 @@ int main() {
             roomShader.setVec3("spotLight.specular", glm::vec3(0.0f, 0.0f, 0.0f));
         }
         if(!programState->SpotLightEnabled && !programState->PointLightEnabled)
-            exposure = 0.3f;
+            exposure = 0.7f;
+        if(programState->SpotLightEnabled && programState->PointLightEnabled)
+            exposure = 0.2f;
 
         roomShader.setVec3("spotLight.direction", spotLight.direction);
         roomShader.setVec3("spotLight.position", spotLight.position);
@@ -674,12 +661,6 @@ int main() {
         }
 
         // render the loaded models
-        //backpack
-        model = glm::mat4(1.0f);
-        model = glm::translate(model,programState->backpackPosition);
-        model = glm::scale(model, glm::vec3(programState->backpackScale));
-        roomShader.setMat4("model", model);
-        ourModel.Draw(roomShader);
 
         //cat
 
@@ -727,8 +708,6 @@ int main() {
         model = glm::scale(model, glm::vec3(0.025f));
         roomShader.setMat4("model", model);
         sofaModel.Draw(roomShader);
-
-
 
         //table glass
 
@@ -780,7 +759,7 @@ int main() {
         hdrShader.setFloat("exposure", exposure);
         renderQuad();
 
-        std::cout << "hdr: " << (hdr ? "on" : "off") << "| exposure: " << exposure << std::endl;
+        std::cout << "hdr: " << (hdr ? "on" : "off") << std::endl;
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -793,9 +772,6 @@ int main() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    // glfw: terminate, clearing all previously allocated GLFW resources.
-    // ------------------------------------------------------------------
-
 
     glDeleteVertexArrays(1, &floorVAO);
     glDeleteVertexArrays(1, &wallsVAO);
@@ -807,6 +783,7 @@ int main() {
     glDeleteBuffers(1, &cubeVBO);
     glDeleteBuffers(1, &glassVBO);
     glDeleteBuffers(1, &cubemapVBO);
+
     glfwTerminate();
     return 0;
 }
@@ -878,12 +855,7 @@ void DrawImGui(ProgramState *programState) {
 
     {
         static float f = 0.0f;
-        ImGui::Begin("Hello window");
-        ImGui::Text("Hello text");
-        ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
-        ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
-        ImGui::DragFloat3("Backpack position", (float*)&programState->backpackPosition);
-        ImGui::DragFloat("Backpack scale", &programState->backpackScale, 0.05, 0.1, 4.0);
+        ImGui::Begin("Light settings");
 
         ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
         ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
@@ -892,6 +864,10 @@ void DrawImGui(ProgramState *programState) {
         ImGui::DragFloat("spotLight.constant", &programState->spotLight.constant, 0.05, 0.0, 1.0);
         ImGui::DragFloat("spotLight.linear", &programState->spotLight.linear, 0.05, 0.0, 1.0);
         ImGui::DragFloat("spotLight.quadratic", &programState->spotLight.quadratic, 0.05, 0.0, 1.0);
+
+        ImGui::Checkbox("Turn on point light", &programState->PointLightEnabled);
+        ImGui::Checkbox("Turn on spot light", &programState->SpotLightEnabled);
+
         ImGui::End();
     }
 
@@ -902,8 +878,6 @@ void DrawImGui(ProgramState *programState) {
         ImGui::Text("(Yaw, Pitch): (%f, %f)", c.Yaw, c.Pitch);
         ImGui::Text("Camera front: (%f, %f, %f)", c.Front.x, c.Front.y, c.Front.z);
         ImGui::Checkbox("Camera mouse update", &programState->CameraMouseMovementUpdateEnabled);
-        ImGui::Checkbox("Turn on point light", &programState->PointLightEnabled);
-        ImGui::Checkbox("Turn on spot light", &programState->SpotLightEnabled);
         ImGui::End();
     }
 
