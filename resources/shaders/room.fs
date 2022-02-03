@@ -63,8 +63,8 @@ void main()
     vec3 viewDir = normalize(viewPosition - FragPos);
 
     vec4 result;
-        result += CalcPointLight(pointLight, normal, FragPos, viewDir);
-        result += CalcDirLight(dirLight, normal, viewDir);
+        result += CalcPointLight(pointLight, -normal, FragPos, viewDir);
+        result += CalcDirLight(dirLight, -normal, viewDir);
         result += CalcSpotLight(spotLight, -normal, FragPos, viewDir);
     FragColor = result;
 }

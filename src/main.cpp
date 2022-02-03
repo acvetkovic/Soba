@@ -27,13 +27,20 @@ void processInput(GLFWwindow *window);
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
-unsigned int loadTexture(char const * path);
+unsigned int loadTexture(const char *path, bool gammaCorrection);
+
+void renderQuad();
+
+void renderCube();
 
 unsigned int loadCubemap(vector<std::string> faces);
 
 // settings
 const unsigned int SCR_WIDTH = 1600;
 const unsigned int SCR_HEIGHT = 1200;
+bool hdr = true;
+bool hdrKeyPressed = false;
+float exposure = 1.5f;
 
 // camera
 
@@ -84,8 +91,8 @@ struct ProgramState {
     bool ImGuiEnabled = false;
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
-    bool PointLightEnabled = true;
-    bool SpotLightEnabled = false;
+    bool PointLightEnabled = false;
+    bool SpotLightEnabled = true;
     glm::vec3 backpackPosition = glm::vec3(0.0f, 5.0f, 0.0f);
     float backpackScale = 1.0f;
 
@@ -200,6 +207,32 @@ int main() {
     // -------------------------
     Shader roomShader("resources/shaders/room.vs", "resources/shaders/room.fs");
     Shader cubemapShader("resources/shaders/cubemap.vs", "resources/shaders/cubemap.fs");
+    Shader hdrShader("resources/shaders/hdr.vs", "resources/shaders/hdr.fs");
+
+    // configure floating point framebuffer
+    // ------------------------------------
+    unsigned int hdrFBO;
+    glGenFramebuffers(1, &hdrFBO);
+    // create floating point color buffer
+    unsigned int colorBuffer;
+    glGenTextures(1, &colorBuffer);
+    glBindTexture(GL_TEXTURE_2D, colorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // create depth buffer (renderbuffer)
+    unsigned int rboDepth;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
+    // attach buffers
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Framebuffer not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 
     float cubeVertices[] = { // from learn opengl
             //positions          // normals           // texture coords
@@ -388,8 +421,8 @@ int main() {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
-    unsigned int floorDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/wood_floor_diffuse.jpg").c_str());
-    unsigned int floorSpecularMap = loadTexture(FileSystem::getPath("resources/textures/wood_floor_specular.jpg").c_str());
+    unsigned int floorDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/wood_floor_diffuse.jpg").c_str(), true);
+    unsigned int floorSpecularMap = loadTexture(FileSystem::getPath("resources/textures/wood_floor_specular.jpg").c_str(), true);
 
     //walls
     unsigned int wallsVBO, wallsVAO;
@@ -408,8 +441,8 @@ int main() {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
-    unsigned int wallsDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/wall_diffuse.jpg").c_str());
-    unsigned int wallsSpecularMap = loadTexture(FileSystem::getPath("resources/textures/wall_specular.jpg").c_str());
+    unsigned int wallsDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/wall_diffuse.jpg").c_str(), true);
+    unsigned int wallsSpecularMap = loadTexture(FileSystem::getPath("resources/textures/wall_specular.jpg").c_str(), true);
 
     //table legs, cabinet
 
@@ -429,8 +462,8 @@ int main() {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
-    unsigned int woodDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/wood_diffuse2.jpg").c_str());
-    unsigned int woodSpecularMap = loadTexture(FileSystem::getPath("resources/textures/wood_specular2.jpg").c_str());
+    unsigned int woodDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/wood_diffuse2.jpg").c_str(), true);
+    unsigned int woodSpecularMap = loadTexture(FileSystem::getPath("resources/textures/wood_specular2.jpg").c_str(), true);
 
     //table glass
 
@@ -450,8 +483,8 @@ int main() {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
-    unsigned int glassDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/glass.png").c_str());
-    unsigned int glassSpecularMap = loadTexture(FileSystem::getPath("resources/textures/glass_specular.jpg").c_str());
+    unsigned int glassDiffuseMap = loadTexture(FileSystem::getPath("resources/textures/glass.png").c_str(), true);
+    unsigned int glassSpecularMap = loadTexture(FileSystem::getPath("resources/textures/glass_specular.jpg").c_str(), true);
 
 
     // load models
@@ -466,7 +499,7 @@ int main() {
     Model lampModel("resources/objects/lamp/light.obj");
     ourModel.SetShaderTextureNamePrefix("material.");
 
-    unsigned int lampTexture = loadTexture(FileSystem::getPath("resources/objects/lamp/lamp.jpg").c_str());
+    unsigned int lampTexture = loadTexture(FileSystem::getPath("resources/objects/lamp/lamp.jpg").c_str(), true);
 
     Model tvModel("resources/objects/Samsung_Smart_TV_55_Zoll/Samsung Smart TV 55 Zoll.obj");
     ourModel.SetShaderTextureNamePrefix("material.");
@@ -474,14 +507,14 @@ int main() {
     Model sofaModel("resources/objects/sofa/3LU_KOLTUK.obj");
     ourModel.SetShaderTextureNamePrefix("material.");
 
-    unsigned int sofaDiffuse = loadTexture(FileSystem::getPath("resources/objects/sofa/sofa_diffuse.jpg").c_str());
-    unsigned int sofaSpecular = loadTexture(FileSystem::getPath("resources/objects/sofa/sofa_specular.jpg").c_str());
+    unsigned int sofaDiffuse = loadTexture(FileSystem::getPath("resources/objects/sofa/sofa_diffuse.jpg").c_str(), true);
+    unsigned int sofaSpecular = loadTexture(FileSystem::getPath("resources/objects/sofa/sofa_specular.jpg").c_str(), true);
 
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(0.0f, 8.0f, 0.0f);
     pointLight.ambient = glm::vec3(0.9f, 0.9f, 0.9f);
-    pointLight.diffuse = glm::vec3(0.6f, 0.6f, 0.6f);
-    pointLight.specular = glm::vec3(1.0f, 1.0f, 1.0f);
+    pointLight.diffuse = glm::vec3(5.6f, 5.6f, 5.6f);
+    pointLight.specular = glm::vec3(3.0f, 3.0f, 3.0f);
     pointLight.constant = 1.0f;
     pointLight.linear = 0.09f;
     pointLight.quadratic = 0.032f;
@@ -496,16 +529,17 @@ int main() {
     spotLight.direction = glm::vec3(0.0f, -1.0f, 0.0f);
     spotLight.position = glm::vec3(0.0f, 8.0f, 0.0f);
     spotLight.ambient = glm::vec3(0.7f, 0.7f, 0.6f);
-    spotLight.diffuse = glm::vec3(6.0f, 6.0f, 5.7f);
-    spotLight.specular = glm::vec3(3.0f, 3.0f, 2.7f);
+    spotLight.diffuse = glm::vec3(1.0f, 1.0f, 0.7f);
+    spotLight.specular = glm::vec3(0.7f, 0.7f, 0.7f);
     spotLight.constant = 0.5f;
     spotLight.linear = 0.1f;
     spotLight.quadratic = 0.04f;
     spotLight.cutOff = glm::cos(glm::radians(75.0f));
     spotLight.outerCutOff = glm::cos(glm::radians(87.0f));
 
-    // draw in wireframe
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    hdrShader.use();
+    hdrShader.setInt("hdrBuffer", 0);
 
     // render loop
     // -----------
@@ -521,10 +555,15 @@ int main() {
         processInput(window);
 
 
-        // render
+        // render into fbo
+
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+
+        glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
         // ------
-        glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         // don't forget to enable shader before setting uniforms
         roomShader.use();
@@ -532,6 +571,7 @@ int main() {
 
         //pointlight
         if (programState->PointLightEnabled) { // turn on/off pointlight
+            exposure = 0.4f;
             roomShader.setVec3("pointLight.ambient", pointLight.ambient);
             roomShader.setVec3("pointLight.diffuse", pointLight.diffuse);
             roomShader.setVec3("pointLight.specular", pointLight.specular);
@@ -553,6 +593,7 @@ int main() {
 
         //spotlight
         if (programState->SpotLightEnabled) { //turn on/off spotlight
+            exposure = 1.5f;
             roomShader.setVec3("spotLight.ambient", spotLight.ambient);
             roomShader.setVec3("spotLight.diffuse", spotLight.diffuse);
             roomShader.setVec3("spotLight.specular", spotLight.specular);
@@ -561,6 +602,9 @@ int main() {
             roomShader.setVec3("spotLight.diffuse", glm::vec3(0.0f, 0.0f, 0.0f));
             roomShader.setVec3("spotLight.specular", glm::vec3(0.0f, 0.0f, 0.0f));
         }
+        if(!programState->SpotLightEnabled && !programState->PointLightEnabled)
+            exposure = 0.3f;
+
         roomShader.setVec3("spotLight.direction", spotLight.direction);
         roomShader.setVec3("spotLight.position", spotLight.position);
         roomShader.setFloat("spotLight.constant", spotLight.constant);
@@ -688,10 +732,10 @@ int main() {
 
         //table glass
 
+        glEnable(GL_BLEND);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, glassDiffuseMap);
-
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, glassSpecularMap);
 
@@ -703,6 +747,7 @@ int main() {
         glBindVertexArray(glassVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
+        glDisable(GL_BLEND);
         glEnable(GL_CULL_FACE); // glass have both sides
 
         //cubemap
@@ -720,12 +765,22 @@ int main() {
         glBindVertexArray(0);
         glDepthFunc(GL_LESS);
 
-
-
-
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
 
+        renderCube();
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        hdrShader.use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, colorBuffer);
+        hdrShader.setInt("hdr", hdr);
+        hdrShader.setFloat("exposure", exposure);
+        renderQuad();
+
+        std::cout << "hdr: " << (hdr ? "on" : "off") << "| exposure: " << exposure << std::endl;
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -770,6 +825,16 @@ void processInput(GLFWwindow *window) {
         programState->camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         programState->camera.ProcessKeyboard(RIGHT, deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !hdrKeyPressed)
+    {
+        hdr = !hdr;
+        hdrKeyPressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE)
+    {
+        hdrKeyPressed = false;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -857,8 +922,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         }
     }
 }
-
-unsigned int loadTexture(char const * path)
+// utility function for loading a 2D texture from file
+// ---------------------------------------------------
+unsigned int loadTexture(char const * path, bool gammaCorrection)
 {
     unsigned int textureID;
     glGenTextures(1, &textureID);
@@ -867,16 +933,25 @@ unsigned int loadTexture(char const * path)
     unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
     if (data)
     {
-        GLenum format;
+        GLenum internalFormat;
+        GLenum dataFormat;
         if (nrComponents == 1)
-            format = GL_RED;
+        {
+            internalFormat = dataFormat = GL_RED;
+        }
         else if (nrComponents == 3)
-            format = GL_RGB;
+        {
+            internalFormat = gammaCorrection ? GL_SRGB : GL_RGB;
+            dataFormat = GL_RGB;
+        }
         else if (nrComponents == 4)
-            format = GL_RGBA;
+        {
+            internalFormat = gammaCorrection ? GL_SRGB_ALPHA : GL_RGBA;
+            dataFormat = GL_RGBA;
+        }
 
         glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -933,3 +1008,110 @@ unsigned int loadCubemap(vector<std::string> faces)
 
     return textureID;
 }
+
+// renderCube() renders a 1x1 3D cube in NDC.
+// -------------------------------------------------
+unsigned int cubeVAO = 0;
+unsigned int cubeVBO = 0;
+void renderCube()
+{
+    // initialize (if necessary)
+    if (cubeVAO == 0)
+    {
+        float vertices[] = {
+                // back face
+                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+                1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+                1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right
+                1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+                -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+                // front face
+                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+                1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+                1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+                1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+                -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+                // left face
+                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+                -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+                -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+                // right face
+                1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+                1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+                1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right
+                1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+                1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+                1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
+                // bottom face
+                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+                1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+                1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+                1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+                -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+                // top face
+                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+                1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+                1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right
+                1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+                -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left
+        };
+        glGenVertexArrays(1, &cubeVAO);
+        glGenBuffers(1, &cubeVBO);
+        // fill buffer
+        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        // link vertex attributes
+        glBindVertexArray(cubeVAO);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+    // render Cube
+    glBindVertexArray(cubeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+}
+
+// renderQuad() renders a 1x1 XY quad in NDC
+// -----------------------------------------
+unsigned int quadVAO = 0;
+unsigned int quadVBO;
+void renderQuad()
+{
+    if (quadVAO == 0)
+    {
+        float quadVertices[] = {
+                // positions        // texture Coords
+                -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+                -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+                1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+                1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+        // setup plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    }
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+}
+
