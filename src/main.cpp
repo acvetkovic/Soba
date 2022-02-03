@@ -198,7 +198,7 @@ int main() {
 
     // build and compile shaders
     // -------------------------
-    Shader ourShader("resources/shaders/room.vs", "resources/shaders/room.fs");
+    Shader roomShader("resources/shaders/room.vs", "resources/shaders/room.fs");
     Shader cubemapShader("resources/shaders/cubemap.vs", "resources/shaders/cubemap.fs");
 
     float cubeVertices[] = { // from learn opengl
@@ -496,11 +496,11 @@ int main() {
     spotLight.direction = glm::vec3(0.0f, -1.0f, 0.0f);
     spotLight.position = glm::vec3(0.0f, 8.0f, 0.0f);
     spotLight.ambient = glm::vec3(0.7f, 0.7f, 0.6f);
-    spotLight.diffuse = glm::vec3(4.0f, 4.0f, 3.5f);
+    spotLight.diffuse = glm::vec3(6.0f, 6.0f, 5.7f);
     spotLight.specular = glm::vec3(3.0f, 3.0f, 2.7f);
-    spotLight.constant = 0.9f;
-    spotLight.linear = 0.15f;
-    spotLight.quadratic = 0.05f;
+    spotLight.constant = 0.5f;
+    spotLight.linear = 0.1f;
+    spotLight.quadratic = 0.04f;
     spotLight.cutOff = glm::cos(glm::radians(75.0f));
     spotLight.outerCutOff = glm::cos(glm::radians(87.0f));
 
@@ -527,57 +527,57 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // don't forget to enable shader before setting uniforms
-        ourShader.use();
+        roomShader.use();
         //pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
 
         //pointlight
         if (programState->PointLightEnabled) { // turn on/off pointlight
-            ourShader.setVec3("pointLight.ambient", pointLight.ambient);
-            ourShader.setVec3("pointLight.diffuse", pointLight.diffuse);
-            ourShader.setVec3("pointLight.specular", pointLight.specular);
+            roomShader.setVec3("pointLight.ambient", pointLight.ambient);
+            roomShader.setVec3("pointLight.diffuse", pointLight.diffuse);
+            roomShader.setVec3("pointLight.specular", pointLight.specular);
         } else {
-            ourShader.setVec3("pointLight.ambient", glm::vec3(0.0f, 0.0f, 0.0f));
-            ourShader.setVec3("pointLight.diffuse", glm::vec3(0.0f, 0.0f, 0.0f));
-            ourShader.setVec3("pointLight.specular", glm::vec3(0.0f, 0.0f, 0.0f));
+            roomShader.setVec3("pointLight.ambient", glm::vec3(0.0f, 0.0f, 0.0f));
+            roomShader.setVec3("pointLight.diffuse", glm::vec3(0.0f, 0.0f, 0.0f));
+            roomShader.setVec3("pointLight.specular", glm::vec3(0.0f, 0.0f, 0.0f));
         }
-        ourShader.setVec3("pointLight.position", pointLight.position);
-        ourShader.setFloat("pointLight.constant", pointLight.constant);
-        ourShader.setFloat("pointLight.linear", pointLight.linear);
-        ourShader.setFloat("pointLight.quadratic", pointLight.quadratic);
+        roomShader.setVec3("pointLight.position", pointLight.position);
+        roomShader.setFloat("pointLight.constant", pointLight.constant);
+        roomShader.setFloat("pointLight.linear", pointLight.linear);
+        roomShader.setFloat("pointLight.quadratic", pointLight.quadratic);
 
         //dirlight
-        ourShader.setVec3("dirLight.direction", dirLight.direction);
-        ourShader.setVec3("dirLight.ambient", dirLight.ambient);
-        ourShader.setVec3("dirLight.diffuse", dirLight.diffuse);
-        ourShader.setVec3("dirLight.specular", dirLight.specular);
+        roomShader.setVec3("dirLight.direction", dirLight.direction);
+        roomShader.setVec3("dirLight.ambient", dirLight.ambient);
+        roomShader.setVec3("dirLight.diffuse", dirLight.diffuse);
+        roomShader.setVec3("dirLight.specular", dirLight.specular);
 
         //spotlight
         if (programState->SpotLightEnabled) { //turn on/off spotlight
-            ourShader.setVec3("spotLight.ambient", spotLight.ambient);
-            ourShader.setVec3("spotLight.diffuse", spotLight.diffuse);
-            ourShader.setVec3("spotLight.specular", spotLight.specular);
+            roomShader.setVec3("spotLight.ambient", spotLight.ambient);
+            roomShader.setVec3("spotLight.diffuse", spotLight.diffuse);
+            roomShader.setVec3("spotLight.specular", spotLight.specular);
         } else {
-            ourShader.setVec3("spotLight.ambient", glm::vec3(0.0f, 0.0f, 0.0f));
-            ourShader.setVec3("spotLight.diffuse", glm::vec3(0.0f, 0.0f, 0.0f));
-            ourShader.setVec3("spotLight.specular", glm::vec3(0.0f, 0.0f, 0.0f));
+            roomShader.setVec3("spotLight.ambient", glm::vec3(0.0f, 0.0f, 0.0f));
+            roomShader.setVec3("spotLight.diffuse", glm::vec3(0.0f, 0.0f, 0.0f));
+            roomShader.setVec3("spotLight.specular", glm::vec3(0.0f, 0.0f, 0.0f));
         }
-        ourShader.setVec3("spotLight.direction", spotLight.direction);
-        ourShader.setVec3("spotLight.position", spotLight.position);
-        ourShader.setFloat("spotLight.constant", spotLight.constant);
-        ourShader.setFloat("spotLight.linear", spotLight.linear);
-        ourShader.setFloat("spotLight.quadratic", spotLight.quadratic);
-        ourShader.setFloat("spotLight.cutOff", spotLight.cutOff);
-        ourShader.setFloat("spotLight.outerCutOff", spotLight.outerCutOff);
+        roomShader.setVec3("spotLight.direction", spotLight.direction);
+        roomShader.setVec3("spotLight.position", spotLight.position);
+        roomShader.setFloat("spotLight.constant", spotLight.constant);
+        roomShader.setFloat("spotLight.linear", spotLight.linear);
+        roomShader.setFloat("spotLight.quadratic", spotLight.quadratic);
+        roomShader.setFloat("spotLight.cutOff", spotLight.cutOff);
+        roomShader.setFloat("spotLight.outerCutOff", spotLight.outerCutOff);
 
-        ourShader.setVec3("viewPosition", programState->camera.Position);
-        ourShader.setFloat("material.shininess", 32.0f);
+        roomShader.setVec3("viewPosition", programState->camera.Position);
+        roomShader.setFloat("material.shininess", 32.0f);
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
                                                 (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = programState->camera.GetViewMatrix();
-        ourShader.setMat4("projection", projection);
-        ourShader.setMat4("view", view);
+        roomShader.setMat4("projection", projection);
+        roomShader.setMat4("view", view);
 
         //render floor
 
@@ -589,7 +589,7 @@ int main() {
 
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::scale(model, glm::vec3(30.0f, 0.0f, 30.0f));
-        ourShader.setMat4("model", model);
+        roomShader.setMat4("model", model);
 
         glBindVertexArray(floorVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -605,7 +605,7 @@ int main() {
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0, 5.0, 0.0));
         model = glm::scale(model, glm::vec3(30.0f, 10.0f, 30.0f));
-        ourShader.setMat4("model", model);
+        roomShader.setMat4("model", model);
 
         glBindVertexArray(wallsVAO);
         glDrawArrays(GL_TRIANGLES, 0, 24);
@@ -625,7 +625,7 @@ int main() {
             model = glm::translate(model, tableLegsPosition[i]);
             model = glm::scale(model, glm::vec3(0.5f, 2.0f, 0.5f));
 
-            ourShader.setMat4("model", model);
+            roomShader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
@@ -634,8 +634,8 @@ int main() {
         model = glm::mat4(1.0f);
         model = glm::translate(model,programState->backpackPosition);
         model = glm::scale(model, glm::vec3(programState->backpackScale));
-        ourShader.setMat4("model", model);
-        ourModel.Draw(ourShader);
+        roomShader.setMat4("model", model);
+        ourModel.Draw(roomShader);
 
         //cat
 
@@ -644,8 +644,8 @@ int main() {
         model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0, 0.0, 0.0));
         model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(0.0, 0.0, 1.0));
         model = glm::scale(model, glm::vec3(0.08f));
-        ourShader.setMat4("model", model);
-        catModel.Draw(ourShader);
+        roomShader.setMat4("model", model);
+        catModel.Draw(roomShader);
 
 
         //lamp
@@ -656,8 +656,8 @@ int main() {
         model = glm::translate(model,glm::vec3(0.0f, 8.0f, 0.0f));
         model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         model = glm::scale(model, glm::vec3(0.03f));
-        ourShader.setMat4("model", model);
-        lampModel.Draw(ourShader);
+        roomShader.setMat4("model", model);
+        lampModel.Draw(roomShader);
 
         //tv
 
@@ -666,8 +666,8 @@ int main() {
         model = glm::mat4(1.0f);
         model = glm::translate(model,glm::vec3(-3.0, 3.0, -11.0));
 
-        ourShader.setMat4("model", model);
-        tvModel.Draw(ourShader);
+        roomShader.setMat4("model", model);
+        tvModel.Draw(roomShader);
 
         //sofa
 
@@ -681,8 +681,8 @@ int main() {
         model = glm::mat4(1.0f);
         model = glm::translate(model,glm::vec3(-5.0f, 0.6f, 9.0f));
         model = glm::scale(model, glm::vec3(0.025f));
-        ourShader.setMat4("model", model);
-        sofaModel.Draw(ourShader);
+        roomShader.setMat4("model", model);
+        sofaModel.Draw(roomShader);
 
 
 
@@ -698,7 +698,7 @@ int main() {
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(-1.53f, 2.01f, 1.49f));
         model = glm::scale(model, glm::vec3(9.6f, 0.0f, 7.6f));
-        ourShader.setMat4("model", model);
+        roomShader.setMat4("model", model);
 
         glBindVertexArray(glassVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
